@@ -1,0 +1,16 @@
+services:
+  app:
+    image: ghcr.io/khawajasaad22/defect-inspection:latest
+    build: .
+    ports:
+      - "127.0.0.1:8502:8501"
+    environment:
+      HF_HOME: /cache/huggingface
+    volumes:
+      - model-cache:/cache
+      - data:/app/data
+      - artifacts:/app/artifacts
+volumes:
+  model-cache:
+  data:
+  artifacts:

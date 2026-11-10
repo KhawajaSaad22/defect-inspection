@@ -94,3 +94,53 @@ Research: https://github.com/CLendering/SubspaceAD
 Backbone: https://github.com/facebookresearch/dinov2
 Dataset: https://www.mvtec.com/research-teaching/datasets/mvtec-ad-2
 MVTec data is not bundled; its non-commercial dataset terms apply separately.
+
+## Docker image
+
+This project has its own CPU image: `ghcr.io/khawajasaad22/defect-inspection:latest`.
+Images are stored in GitHub Container Registry; the repository contains the Dockerfile,
+Compose configuration, and build/publish workflow. The workflow tests the image and
+checks the running app before publishing `latest` and a full commit-SHA tag. A failed
+build does not publish. Use the Actions tab to confirm the first successful publication.
+
+With Docker Engine/Desktop and Compose installed, from this repository:
+
+```sh
+docker compose up --build -d
+```
+
+Open http://localhost:8502. To use the registry image after it is published:
+
+```sh
+docker compose pull app
+docker compose up -d --no-build app
+```
+
+If the registry package is private, authenticate with `docker login ghcr.io` using an
+account/token allowed to read the package. Repository visibility alone does not ensure
+anonymous image access. No custom registry secret is needed by the publishing workflow:
+it uses the repository's built-in GitHub token with package-write permission.
+
+The container runs as UID 10001. Named volumes preserve inputs, generated artifacts,
+and downloaded model weights. Weights and private datasets are not baked into the image.
+First model use requires internet access. These are Linux/amd64 CPU images; GPU/CUDA
+acceleration is not included. Initial builds can take several minutes.
+
+Use `docker compose exec app python ...` for the documented CLI commands. Inputs are
+container paths, not Windows host paths. Copy real files with `docker compose cp`:
+
+```sh
+docker compose cp ./my-input app:/app/data/my-input
+docker compose logs -f app
+docker compose down
+```
+
+`down` keeps named volumes; `down -v` deletes them, including your generated work.
+The app port is published on localhost only. Container health means Streamlit is running;
+you still need to prepare data and fit/index models before using the app workflow.
+
+```sh
+docker compose exec app python make_demo.py
+docker compose exec app python inspect_defects.py fit --train data/demo/train --calibration data/demo/calibration --output artifacts/dino-pca.npz
+docker compose exec app python inspect_defects.py evaluate --model artifacts/dino-pca.npz --manifest data/demo/test.json --output artifacts/report.json
+```
