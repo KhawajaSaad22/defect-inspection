@@ -35,7 +35,8 @@ improved without changing scoring or decisions; the primary dino-pca artifact wa
 4. Install CUDA PyTorch in a dedicated environment and profile the RTX 4060 (8 GB).
 5. Use real domain-shift sessions before making robustness claims.
 
-No commercial dataset was downloaded, no claims of paper reproduction are made, and
-no new repository was published. The sibling hybrid-rag environment was reused for
+No commercial dataset was downloaded and no claims of paper reproduction are made.
+Source is published at https://github.com/KhawajaSaad22/defect-inspection .
+The sibling hybrid-rag environment was reused for
 verification without modifying its dependencies; model weights were downloaded to the
 standard Hugging Face cache. Scripts also support independent installation.
