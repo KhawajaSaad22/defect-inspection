@@ -32,11 +32,11 @@ improved without changing scoring or decisions; the primary dino-pca artifact wa
 1. Obtain a licensed real MVTec AD category or collect normal/defect product photographs.
 2. Prepare disjoint splits with prepare_mvtec.py; keep acquisition sessions separated.
 3. Run at least three seeds and compare 1-shot and 4-shot models on several categories.
-4. Install CUDA PyTorch in a dedicated environment and profile the RTX 4060 (8 GB).
+4. Install CUDA PyTorch in a dedicated environment and profile my RTX 4060 (8 GB).
 5. Use real domain-shift sessions before making robustness claims.
 
 No commercial dataset was downloaded and no claims of paper reproduction are made.
 Source is published at https://github.com/KhawajaSaad22/defect-inspection .
-The sibling hybrid-rag environment was reused for
-verification without modifying its dependencies; model weights were downloaded to the
+I reused my sibling hybrid-rag environment for
+verification without modifying its dependencies; I downloaded model weights to my
 standard Hugging Face cache. Scripts also support independent installation.
