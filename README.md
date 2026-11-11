@@ -19,14 +19,14 @@ python -m venv .venv
 ```
 
 For CUDA, install the compatible PyTorch build using https://pytorch.org/get-started/locally/
-before installing requirements. The existing sibling `../hybrid-rag/.venv` can also run
-the scripts; it currently contains CPU-only PyTorch. Your RTX 4060 has 8 GB VRAM.
+before installing requirements. My existing sibling `../hybrid-rag/.venv` can also run
+the scripts; it currently contains CPU-only PyTorch. My RTX 4060 has 8 GB VRAM.
 Default DINO input is 224 square pixels; increase only in multiples of 14 after profiling.
 First DINO use downloads official Hugging Face model weights. No paid API is needed.
 
 ## Run the complete demo
 
-Replace `python` below with your environment's Python executable:
+Replace `python` below with my environment's Python executable:
 
 ```powershell
 python make_demo.py
@@ -135,9 +135,9 @@ docker compose logs -f app
 docker compose down
 ```
 
-`down` keeps named volumes; `down -v` deletes them, including your generated work.
+`down` keeps named volumes; `down -v` deletes them, including my generated work.
 The app port is published on localhost only. Container health means Streamlit is running;
-you still need to prepare data and fit/index models before using the app workflow.
+I still need to prepare data and fit/index models before using the app workflow.
 
 ```sh
 docker compose exec app python make_demo.py
