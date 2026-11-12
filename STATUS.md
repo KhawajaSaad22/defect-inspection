@@ -1,5 +1,11 @@
 # Verified progress
 
+Reliability update (12 November 2026): added a read-only dataset auditor with
+manifest hashing, group overlap, exact/near duplicate candidates, mask checks and
+class counts. Seeded-error and valid-manifest tests exercise the audit. This is
+evaluation infrastructure; real-data domain-shift claims still require new captures
+or an appropriately licensed dataset.
+
 ## Working
 
 - DINOv2-small loaded from its official pretrained checkpoint and fit on four normal images.

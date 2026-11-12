@@ -1,5 +1,14 @@
 # Few-shot defect inspection under domain shift
 
+Dataset audit update: `python dataset_audit.py manifest.json --output audit.json`
+checks IDs, file readability, masks, class counts, exact duplicates and group overlap.
+Each row needs `id`, `image`, `split`, `group`, and either a `mask` or `label: 0`
+for a normal image; pool samples may omit labels. Paths are relative to the manifest.
+Near-duplicate cross-split candidates use dHash and require human review. For more
+than 2,000 samples use `--near-distance -1` to disable the quadratic candidate scan.
+Exit code 2 means blocking issues; input files are never changed. Define groups by
+related physical objects/capture sessions and run this audit before experiments.
+
 Research question: with only 1–4 normal reference images, how much does defect detection
 degrade under illumination changes, and does normal-only augmentation reduce the damage?
 
