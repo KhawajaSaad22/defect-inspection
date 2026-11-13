@@ -75,8 +75,8 @@ def patch_scores(features, state,device='cpu'):
         centered = features - state['mean']
         residual = centered - (centered @ state['basis'].T) @ state['basis']
         return np.sqrt(np.mean(residual ** 2, axis=1))
-    reference = torch.from_numpy(state['bank'])
-    query = torch.from_numpy(features)
+    reference = torch.as_tensor(state['bank'],dtype=torch.float32)
+    query = torch.as_tensor(features,dtype=torch.float32)
     return torch.cat([torch.cdist(part[None], reference[None])[0].min(1).values
                       for part in query.split(128)]).numpy()
 
@@ -100,7 +100,8 @@ def fit(train, calibration, output, shots=4, backend='dino', method='pca', seed=
     variants = ('clean','dark','bright','contrast') if augment else ('clean',)
     features = np.concatenate([encoder.encode(p, s) for p in chosen for s in variants])
     if len(features) > max_patches: features = features[rng.choice(len(features), max_patches, replace=False)]
-    state = dict(backend=np.array(backend), method=np.array(method), size=np.array(size),
+    state = dict(format_version=np.array(1),model_id=np.array(MODEL if backend=='dino' else 'rgb-patches-v1'),
+                 backend=np.array(backend), method=np.array(method), size=np.array(size),
                  train_hashes=np.array(sorted(all_hashes)), calibration_hashes=np.array([fingerprint(p) for p in validation]))
     if method == 'pca':
         mean = features.mean(0)
@@ -116,6 +117,7 @@ def fit(train, calibration, output, shots=4, backend='dino', method='pca', seed=
     state['visual_low'] = np.array(np.quantile(all_calibration_scores, .95))
     state['visual_high'] = np.array(np.quantile(all_calibration_scores, .999))
     state['threshold'] = np.array(np.quantile(values, 1-fpr, method='higher'))
+    validate_model(state)
     output = Path(output); output.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(output, **state)
     metadata = dict(model=MODEL if backend=='dino' else 'RGB pixel smoke baseline', shots=shots,
@@ -125,11 +127,48 @@ def fit(train, calibration, output, shots=4, backend='dino', method='pca', seed=
     return metadata
 
 
+def validate_model(state):
+    """Accept current and legacy version-1 artifacts without enabling pickle."""
+    error='Invalid inspection model; refit it from the normal reference images'
+    try:
+        for key in ('backend','method','size','threshold'):
+            if np.asarray(state[key]).shape!=():raise ValueError(error)
+        backend=str(state['backend']);method=str(state['method']);size=state['size'].item()
+        if type(size) is not int or size<28 or size%14 or backend not in ('dino','rgb') or method not in ('pca','knn'):raise ValueError(error)
+        version=np.asarray(state.get('format_version',1))
+        if version.shape!=() or version.item()!=1:raise ValueError(error)
+        model_id=np.asarray(state.get('model_id',MODEL if backend=='dino' else 'rgb-patches-v1'))
+        if model_id.shape!=() or str(model_id)!=(MODEL if backend=='dino' else 'rgb-patches-v1'):raise ValueError(error)
+        for key in ('threshold','visual_low','visual_high'):
+            value=np.asarray(state.get(key,state['threshold']))
+            if value.shape!=() or value.dtype.kind not in 'fiu' or not np.isfinite(value) or value<0:raise ValueError(error)
+        if float(state.get('visual_high',state['threshold']))<float(state.get('visual_low',0)):raise ValueError(error)
+        for key in ('train_hashes','calibration_hashes'):
+            hashes=np.asarray(state[key])
+            if hashes.ndim!=1 or not len(hashes) or hashes.dtype.kind not in 'US':raise ValueError(error)
+            if any(len(str(v))!=64 or any(c not in '0123456789abcdef' for c in str(v)) for v in hashes):raise ValueError(error)
+        dimension=384 if backend=='dino' else 14*14*3
+        keys=('mean','basis') if method=='pca' else ('bank',)
+        for key in keys:
+            value=np.asarray(state[key])
+            if value.dtype.kind not in 'fiu' or not np.isfinite(value).all():raise ValueError(error)
+        if method=='pca':
+            if state['mean'].shape!=(dimension,) or state['basis'].ndim!=2 or state['basis'].shape[1]!=dimension or not 0<len(state['basis'])<=dimension:raise ValueError(error)
+        elif state['bank'].ndim!=2 or not len(state['bank']) or state['bank'].shape[1]!=dimension:raise ValueError(error)
+    except (KeyError,TypeError,AttributeError,OverflowError) as exc:raise ValueError(error) from exc
+    return state
+
+
 def load(path):
-    with np.load(path, allow_pickle=False) as archive: return {k: archive[k] for k in archive.files}
+    try:
+        with np.load(path,allow_pickle=False) as archive:state={k:archive[k] for k in archive.files}
+    except (ValueError,KeyError,EOFError) as exc:raise ValueError('Cannot read inspection model; refit it') from exc
+    return validate_model(state)
 
 
 def predict(path, state, encoder, shift='clean'):
+    if encoder.backend!=str(state['backend']) or encoder.size!=int(state['size']):
+        raise ValueError('Encoder backend/size does not match the saved inspection model')
     scores = patch_scores(encoder.encode(path, shift), state,encoder.device)
     side = encoder.size // 14
     return image_score(scores), scores.reshape(side, side)

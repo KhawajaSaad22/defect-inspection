@@ -156,3 +156,9 @@ docker compose exec app python make_demo.py
 docker compose exec app python inspect_defects.py fit --train data/demo/train --calibration data/demo/calibration --output artifacts/dino-pca.npz
 docker compose exec app python inspect_defects.py evaluate --model artifacts/dino-pca.npz --manifest data/demo/test.json --output artifacts/report.json
 ```
+
+## Saved-model reliability update — 13 November 2026
+
+New saved artifacts include format/model identity. Loading checks backend, method, image size, finite calibration/visualization values, reference hashes and PCA/kNN array dimensions before initializing DINO. Valid legacy artifacts without the new identity fields remain supported; explicit incompatible identities fail with a refit instruction. Prediction rejects an encoder with a different backend or image size before encoding. CPU kNN inputs are consistently converted to float32, matching the GPU scoring path.
+
+Generated-data model round trips and CUDA scoring tests pass. This validates artifact compatibility and execution; real defect calibration/quality remains to be measured. Artifact signatures, optimized persistent GPU reference banks and broader deployment benchmarks remain future work.

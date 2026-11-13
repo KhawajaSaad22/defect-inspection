@@ -6,6 +6,19 @@ from inspect_defects import patch_scores,image_score,shifted,Encoder,fit,load,pr
 from PIL import Image
 
 class Tests(unittest.TestCase):
+    def test_saved_model_validation_and_legacy_support(self):
+        from inspect_defects import validate_model
+        state=dict(backend=np.array('rgb'),method=np.array('knn'),size=np.array(28),threshold=np.array(1.),
+                   train_hashes=np.array(['a'*64]),calibration_hashes=np.array(['b'*64]),bank=np.ones((2,588),dtype='float32'))
+        self.assertIs(validate_model(state),state)
+        for change in ({'threshold':np.array(float('nan'))},{'bank':np.ones((2,12))},{'size':np.array(29)},
+                       {'format_version':np.array(2)},{'model_id':np.array('different')},{'method':np.array('unknown')}):
+            with self.subTest(change=change),self.assertRaises(ValueError):validate_model(dict(state,**change))
+    def test_incompatible_encoder_is_rejected_before_encoding(self):
+        from types import SimpleNamespace
+        encoder=SimpleNamespace(backend='rgb',size=28)
+        with self.assertRaisesRegex(ValueError,'does not match'):
+            predict('unused',dict(backend=np.array('dino'),size=np.array(224)),encoder)
     def test_scoring_device_validation(self):
         with self.assertRaisesRegex(ValueError,'Scoring device'):
             patch_scores(np.zeros((1,2)),{},device='invalid')
