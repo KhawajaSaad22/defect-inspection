@@ -1,5 +1,8 @@
 # Few-shot defect inspection under domain shift
 
+DINO encoding can use CUDA. See [GPU.md](GPU.md) for the optional GPU container;
+the default published image uses CPU PyTorch. PCA/kNN scoring is still CPU-based.
+
 Dataset audit update: `python dataset_audit.py manifest.json --output audit.json`
 checks IDs, file readability, masks, class counts, exact duplicates and group overlap.
 Each row needs `id`, `image`, `split`, `group`, and either a `mask` or `label: 0`

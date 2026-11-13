@@ -18,6 +18,8 @@ jobs:
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Validate Compose configuration
         run: docker compose config --quiet
+      - name: Validate GPU Compose configuration
+        run: docker compose -f compose.yaml -f compose.gpu.yaml config --quiet
       - name: Build tested CPU image
         uses: docker/build-push-action@v7
         with:

@@ -1,0 +1,9 @@
+services:
+  app:
+    image: defect-inspection:cuda-local
+    build:
+      context: .
+      args:
+        TORCH_INDEX_URL: https://pypi.org/simple
+    gpus: all
+    command: ["sh", "-c", "python gpu_check.py && python -m streamlit run app.py --server.address=0.0.0.0 --server.port=8501"]
