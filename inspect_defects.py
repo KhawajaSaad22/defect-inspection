@@ -26,6 +26,8 @@ def shifted(image, shift):
 class Encoder:
     def __init__(self, backend='dino', size=224, device='auto'):
         if size < 28 or size % 14: raise ValueError('Image size must be a multiple of 14, at least 28')
+        if device not in ('auto','cpu','cuda'):raise ValueError('Device must be auto, cpu or cuda')
+        if device=='cuda' and not torch.cuda.is_available():raise ValueError('CUDA requested but unavailable')
         self.backend, self.size = backend, size
         self.device = ('cuda' if torch.cuda.is_available() else 'cpu') if device == 'auto' else device
         if backend == 'dino':
@@ -57,7 +59,18 @@ def image_files(folder):
 def fingerprint(path): return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def patch_scores(features, state):
+def patch_scores(features, state,device='cpu'):
+    if device not in ('cpu','cuda'):raise ValueError('Scoring device must be cpu or cuda')
+    if device=='cuda':
+        if not torch.cuda.is_available():raise ValueError('CUDA requested but unavailable')
+        query=torch.as_tensor(features,device='cuda',dtype=torch.float32)
+        if str(state['method'])=='pca':
+            mean=torch.as_tensor(state['mean'],device='cuda',dtype=torch.float32)
+            basis=torch.as_tensor(state['basis'],device='cuda',dtype=torch.float32)
+            centered=query-mean;residual=centered-(centered@basis.T)@basis
+            return residual.square().mean(1).sqrt().cpu().numpy()
+        reference=torch.as_tensor(state['bank'],device='cuda',dtype=torch.float32)
+        return torch.cat([torch.cdist(part[None],reference[None])[0].min(1).values for part in query.split(128)]).cpu().numpy()
     if str(state['method']) == 'pca':
         centered = features - state['mean']
         residual = centered - (centered @ state['basis'].T) @ state['basis']
@@ -97,7 +110,7 @@ def fit(train, calibration, output, shots=4, backend='dino', method='pca', seed=
         state.update(mean=mean, basis=basis[:rank])
     elif method == 'knn': state['bank'] = features
     else: raise ValueError('Unknown method')
-    calibration_maps = [patch_scores(encoder.encode(p), state) for p in validation]
+    calibration_maps = [patch_scores(encoder.encode(p), state,encoder.device) for p in validation]
     values = [image_score(scores) for scores in calibration_maps]
     all_calibration_scores = np.concatenate(calibration_maps)
     state['visual_low'] = np.array(np.quantile(all_calibration_scores, .95))
@@ -117,7 +130,7 @@ def load(path):
 
 
 def predict(path, state, encoder, shift='clean'):
-    scores = patch_scores(encoder.encode(path, shift), state)
+    scores = patch_scores(encoder.encode(path, shift), state,encoder.device)
     side = encoder.size // 14
     return image_score(scores), scores.reshape(side, side)
 
@@ -158,7 +171,7 @@ def evaluate(model, manifest, output, device='auto'):
                            seconds_per_image=(time.perf_counter()-start)/len(y),
                            pixel_auroc=float(roc_auc_score(pixel_y,pixel_s)) if len(set(pixel_y))==2 else None))
     output=Path(output); output.parent.mkdir(parents=True,exist_ok=True)
-    result=dict(metrics=report, threshold=float(state['threshold']), predictions=predictions,
+    result=dict(metrics=report, threshold=float(state['threshold']), predictions=predictions,device=encoder.device,scoring_device=encoder.device,
                 note='Synthetic photometric shifts; not proof of real-world robustness. Pixel metrics cover only rows with masks.')
     output.write_text(json.dumps(result,indent=2),encoding='utf-8')
     return report

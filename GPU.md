@@ -19,13 +19,18 @@ Versions remain compatibility ranges, so record/lock the validated deployment st
 
 ## GPU workload
 
-DINO feature extraction already accepts --device auto|cpu|cuda. Use --device cuda on fit/evaluate/predict to require the GPU. The current PCA/kNN scoring and metadata operations still use CPU; the override does not silently replace those algorithms.
+DINO extraction and PCA residual/kNN patch scoring use the selected device. Use --device cuda to require GPU execution. kNN queries are chunked. PCA basis fitting and file/report handling remain CPU; NumPy features/state incur transfers.
 
 ## Validation status — 13 November 2026
 
-The override parses successfully. GPU visibility and real student-model training were
-verified on my RTX 4060 in the annotation-assistant project using the existing Linux
-CUDA image (PyTorch 2.15.0+cu132). This repository's complete GPU application image
-and its real model path have not been independently executed in this update.
-The CPU container and its normal tests remain available. No performance or accuracy
-improvement is claimed without measuring the actual model/input workload.
+Real facebook/dinov2-small extraction ran on cuda:0, producing 256×384 patch features. Synthetic scoring banks gave CPU/CUDA maximum absolute differences of 0.000691 for kNN and 3.73e-9 for PCA.
+
+Verified on my RTX 4060 in a local Linux container with PyTorch 2.15.0+cu132 / CUDA 13.2 using cached weights. These are real model execution checks on synthetic fixtures, not accuracy or speed benchmarks. The complete application GPU image was not independently rebuilt in this patch. CPU CI does not validate CUDA.
+
+To repeat in a CUDA-capable environment containing dependencies and cached weights:
+
+```sh
+python gpu_validate.py --device cuda --output artifacts/gpu-validation.json
+```
+
+The output path must be new. Validation defaults to offline model loading; --allow-download explicitly permits downloads. No real inspection dataset is needed.

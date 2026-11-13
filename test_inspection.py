@@ -6,6 +6,19 @@ from inspect_defects import patch_scores,image_score,shifted,Encoder,fit,load,pr
 from PIL import Image
 
 class Tests(unittest.TestCase):
+    def test_scoring_device_validation(self):
+        with self.assertRaisesRegex(ValueError,'Scoring device'):
+            patch_scores(np.zeros((1,2)),{},device='invalid')
+
+    def test_cuda_scoring_matches_cpu(self):
+        import torch
+        if not torch.cuda.is_available():self.skipTest('CUDA unavailable')
+        rng=np.random.default_rng(4)
+        query=rng.normal(size=(257,8)).astype('float32')
+        for state in ({'method':'knn','bank':rng.normal(size=(31,8)).astype('float32')},
+                      {'method':'pca','mean':np.zeros(8,dtype='float32'),'basis':np.eye(8,dtype='float32')[:3]}):
+            np.testing.assert_allclose(patch_scores(query,state,'cuda'),patch_scores(query,state,'cpu'),atol=1e-4,rtol=1e-4)
+
     def test_residual(self):
         state={'method':'pca','mean':np.zeros(2),'basis':np.array([[1.,0.]])}
         scores=patch_scores(np.array([[3.,0.],[0.,4.]]),state)
